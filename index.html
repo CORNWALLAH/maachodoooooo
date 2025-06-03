@@ -1,77 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>🔥 Super RAM + CPU Stress Test</title>
+  <meta charset="UTF-8" />
+  <title>Max RAM Stress Test</title>
 </head>
 <body>
-  <h1>🔥 Super RAM + CPU Stress Test</h1>
-  <p>This will use heavy memory + CPU. Monitor usage in Activity Monitor.</p>
-  <button onclick="startTest()">Start</button>
-  <button onclick="stopTest()">Stop</button>
+  <h1>🔥 Max RAM Stress Test (Persistent)</h1>
+  <p>Use with Activity Monitor. Click "Stop" to free memory (if not killed).</p>
+  <button onclick="start()">Start</button>
+  <button onclick="stop()">Stop</button>
 
   <script>
-    let data = [];
-    let running = false;
+    let arrays = [];
+    let keepRunning = false;
     let workers = [];
 
-    function startTest() {
-      running = true;
-      hogRAM();
-      hogDOM();
+    function start() {
+      if (keepRunning) return;
+      keepRunning = true;
+      console.log("Started RAM flood");
+
+      // RAM Hog
+      const allocate = () => {
+        if (!keepRunning) return;
+        try {
+          for (let i = 0; i < 10; i++) {
+            const hugeArray = new Array(5e6).fill("🚀".repeat(500)); // ~25–50MB per loop
+            arrays.push(hugeArray);
+          }
+          console.log("Memory blocks:", arrays.length);
+          setTimeout(allocate, 100);
+        } catch (e) {
+          console.warn("Allocation failed:", e);
+        }
+      };
+
+      // DOM Flood (minor RAM + render stress)
+      const floodDOM = () => {
+        if (!keepRunning) return;
+        for (let i = 0; i < 2000; i++) {
+          const el = document.createElement("div");
+          el.textContent = "🔥 DOM Stress Node";
+          document.body.appendChild(el);
+        }
+        setTimeout(floodDOM, 500);
+      };
+
+      // Web Workers to eat CPU & separate memory space
+      const createWorkers = () => {
+        const blob = new Blob([`
+          onmessage = () => {
+            let junk = [];
+            while (true) {
+              junk.push(new Array(10000).fill(Math.random()));
+              if (junk.length > 10000) junk = junk.slice(5000); // Keep memory
+            }
+          }
+        `]);
+        const url = URL.createObjectURL(blob);
+        const count = navigator.hardwareConcurrency * 2;
+
+        for (let i = 0; i < count; i++) {
+          const worker = new Worker(url);
+          worker.postMessage("start");
+          workers.push(worker);
+        }
+        console.log(`${count} workers started`);
+      };
+
+      allocate();
+      floodDOM();
       createWorkers();
     }
 
-    function stopTest() {
-      running = false;
+    function stop() {
+      keepRunning = false;
+      arrays = [];
       workers.forEach(w => w.terminate());
       workers = [];
-      console.log("Stopped.");
-    }
-
-    // 🧠 Fills RAM with large string arrays
-    function hogRAM() {
-      if (!running) return;
-      for (let i = 0; i < 5; i++) {
-        let arr = new Array(1e7).fill("🧠".repeat(100));
-        data.push(arr);
-      }
-      console.log("RAM chunk added. Total:", data.length);
-      setTimeout(hogRAM, 100);
-    }
-
-    // 🌐 Creates tons of DOM elements
-    function hogDOM() {
-      if (!running) return;
-      for (let i = 0; i < 5000; i++) {
-        let div = document.createElement("div");
-        div.textContent = "Stress Node 🌪️";
-        div.style.margin = "1px";
-        document.body.appendChild(div);
-      }
-      console.log("DOM flooded.");
-      setTimeout(hogDOM, 300);
-    }
-
-    // ⚙️ Creates multiple Web Workers that run infinite loops
-    function createWorkers() {
-      let blob = new Blob([`
-        onmessage = function() {
-          while (true) {
-            let x = Math.sqrt(Math.random() * 999999999);
-          }
-        }
-      `]);
-
-      let workerURL = URL.createObjectURL(blob);
-      let coreCount = navigator.hardwareConcurrency || 4;
-
-      for (let i = 0; i < coreCount * 2; i++) { // double the threads
-        let w = new Worker(workerURL);
-        w.postMessage("start");
-        workers.push(w);
-        console.log("Worker", i + 1, "started");
-      }
+      console.log("Stopped and cleared");
     }
   </script>
 </body>
