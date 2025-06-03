@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🔥 Super RAM + CPU Stress Test</title>
+</head>
+<body>
+  <h1>🔥 Super RAM + CPU Stress Test</h1>
+  <p>This will use heavy memory + CPU. Monitor usage in Activity Monitor.</p>
+  <button onclick="startTest()">Start</button>
+  <button onclick="stopTest()">Stop</button>
+
+  <script>
+    let data = [];
+    let running = false;
+    let workers = [];
+
+    function startTest() {
+      running = true;
+      hogRAM();
+      hogDOM();
+      createWorkers();
+    }
+
+    function stopTest() {
+      running = false;
+      workers.forEach(w => w.terminate());
+      workers = [];
+      console.log("Stopped.");
+    }
+
+    // 🧠 Fills RAM with large string arrays
+    function hogRAM() {
+      if (!running) return;
+      for (let i = 0; i < 5; i++) {
+        let arr = new Array(1e7).fill("🧠".repeat(100));
+        data.push(arr);
+      }
+      console.log("RAM chunk added. Total:", data.length);
+      setTimeout(hogRAM, 100);
+    }
+
+    // 🌐 Creates tons of DOM elements
+    function hogDOM() {
+      if (!running) return;
+      for (let i = 0; i < 5000; i++) {
+        let div = document.createElement("div");
+        div.textContent = "Stress Node 🌪️";
+        div.style.margin = "1px";
+        document.body.appendChild(div);
+      }
+      console.log("DOM flooded.");
+      setTimeout(hogDOM, 300);
+    }
+
+    // ⚙️ Creates multiple Web Workers that run infinite loops
+    function createWorkers() {
+      let blob = new Blob([`
+        onmessage = function() {
+          while (true) {
+            let x = Math.sqrt(Math.random() * 999999999);
+          }
+        }
+      `]);
+
+      let workerURL = URL.createObjectURL(blob);
+      let coreCount = navigator.hardwareConcurrency || 4;
+
+      for (let i = 0; i < coreCount * 2; i++) { // double the threads
+        let w = new Worker(workerURL);
+        w.postMessage("start");
+        workers.push(w);
+        console.log("Worker", i + 1, "started");
+      }
+    }
+  </script>
+</body>
+</html>
